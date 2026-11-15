@@ -1,0 +1,14 @@
+{
+  "name": "artifactum-skills",
+  "description": "Artifactum plugins for coding agents",
+  "owner": { "name": "Artifactum", "url": "https://atfm.io" },
+  "plugins": [
+    {
+      "name": "artifactum",
+      "source": "./",
+      "description": "Record data with its lineage as you code, and ask your team's registry where results came from.",
+      "category": "data",
+      "tags": ["provenance", "lineage", "mcp"]
+    }
+  ]
+}

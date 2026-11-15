@@ -1,0 +1,28 @@
+{
+  "name": "artifactum",
+  "version": "0.1.0",
+  "description": "Artifactum (atfm) for coding agents: record data files with their lineage as you write code, and answer provenance questions from your team's registry over MCP.",
+  "author": {
+    "name": "Artifactum",
+    "url": "https://atfm.io"
+  },
+  "homepage": "https://atfm.io/docs#agents",
+  "repository": "https://github.com/atfm-io/artifactum-skills",
+  "license": "MIT",
+  "keywords": [
+    "provenance",
+    "lineage",
+    "data",
+    "bioinformatics",
+    "mcp",
+    "atfm"
+  ],
+  "mcpServers": {
+    "artifactum": {
+      "type": "http",
+      "url": "${ATFM_SERVER_URL:-https://atfm.io}/mcp",
+      "headersHelper": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/atfm_headers.py\""
+    }
+  },
+  "privacyPolicyUrl": "https://atfm.io/privacy"
+}

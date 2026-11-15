@@ -1,0 +1,38 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "artifactum",
+  "version": "0.1.0",
+  "description": "Artifactum (atfm) for coding agents: record data files with their lineage as you write code, and answer provenance questions from your team's registry over MCP.",
+  "author": {
+    "name": "Artifactum",
+    "url": "https://atfm.io"
+  },
+  "homepage": "https://atfm.io/docs#agents",
+  "repository": "https://github.com/atfm-io/artifactum-skills",
+  "license": "MIT",
+  "keywords": [
+    "provenance",
+    "lineage",
+    "data",
+    "bioinformatics",
+    "mcp",
+    "atfm"
+  ],
+  "extensions": {
+    "com.openai": {
+      "hooks": "./hooks/hooks.json",
+      "interface": {
+        "displayName": "Artifactum",
+        "shortDescription": "Record data with its lineage, and ask where results came from",
+        "developerName": "Artifactum",
+        "category": "Productivity",
+        "websiteURL": "https://atfm.io",
+        "privacyPolicyURL": "https://atfm.io/privacy",
+        "termsOfServiceURL": "https://atfm.io/terms",
+        "defaultPrompt": "What is our latest fine-mapping result built from, and is any of it out of date?",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      }
+    }
+  }
+}
