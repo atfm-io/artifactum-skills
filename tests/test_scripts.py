@@ -23,6 +23,12 @@ def run(script: str, stdin: dict | str = "", **env: str) -> subprocess.Completed
     )
 
 
+def _client_visible_to_test_python() -> bool:
+    import importlib.util
+
+    return importlib.util.find_spec("artifactum") is not None
+
+
 class Base(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp())
@@ -65,8 +71,9 @@ class HeadersHelper(Base):
 
 
 class SessionStart(Base):
-    def context(self, **env: str) -> str:
-        r = run("session_start.py", {"hook_event_name": "SessionStart", "source": "startup"}, **self.env, **env)
+    def context(self, cwd: str | None = None, **env: str) -> str:
+        event = {"hook_event_name": "SessionStart", "source": "startup", "cwd": cwd or str(self.tmp)}
+        r = run("session_start.py", event, **self.env, **env)
         self.assertEqual(r.returncode, 0, r.stderr)
         out = json.loads(r.stdout)["hookSpecificOutput"]
         self.assertEqual(out["hookEventName"], "SessionStart")
@@ -74,11 +81,28 @@ class SessionStart(Base):
 
     def test_says_to_use_atfm_for_data(self) -> None:
         self.config()
+        (self.tmp / ".venv" / "bin").mkdir(parents=True)
+        (self.tmp / ".venv" / "bin" / "atfm").write_text("")  # the client, installed in the project
         text = self.context()
         self.assertIn("atfm.artifact", text)
         self.assertIn("track-data", text)
         self.assertIn("set up for https://atfm.io", text)
         self.assertNotIn("atfm_secret", text)  # the key never reaches the model
+
+    def test_says_when_the_client_is_not_installed(self) -> None:
+        self.config()
+        # No atfm on PATH and none importable
+        bare = {"PATH": str(self.tmp / "nothing"), "PYTHONNOUSERSITE": "1"}
+        if _client_visible_to_test_python():
+            self.skipTest("artifactum is importable from the test's Python")
+        text = self.context(**bare)
+        self.assertIn("client was not found", text)
+        self.assertIn("pip install artifactum", text)
+        # Installed in the project's own venv counts
+        exe = self.tmp / ".venv" / "bin" / "atfm"
+        exe.parent.mkdir(parents=True)
+        exe.write_text("")
+        self.assertIn("set up for https://atfm.io", self.context(**bare))
 
     def test_points_to_setup_when_not_configured(self) -> None:
         self.assertIn("setup skill", self.context())
