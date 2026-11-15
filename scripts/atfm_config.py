@@ -2,7 +2,7 @@
 
 `atfm init` saves the API token and server in ~/.artifactum/config.toml. The token can also come
 from the ATFM_API_KEY environment variable (for CI, or keys kept in a secrets manager). Standard
-library only, and Python 3.8+, since this runs before anything is installed.
+library only, and Python 3.10+, the oldest the client supports, since this runs before anything is installed.
 """
 from __future__ import annotations
 
