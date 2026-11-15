@@ -17,8 +17,8 @@ Plugins for **Claude Code** and **Codex** that make your agent work with [Artifa
 | | |
 | --- | --- |
 | **Skills** | `track-data`: read inputs and publish outputs with lineage, from Python, shell, R, Snakemake or Nextflow. `trace-provenance`: answer lineage, staleness and "where did this come from" questions. `setup`: install, `atfm init`, and fixing the connection. |
-| **MCP server** | `https://atfm.io/mcp`: search the registry, read an artifact's record and data card, walk lineage, list stale artifacts and collections. Read-only. |
-| **Hooks** | At session start, a short note that Artifactum is available and when to use it. After the agent writes or edits a `.py` file or notebook that loads or saves data without Artifactum, a one-time reminder to track it. Neither ever blocks the agent. |
+| **MCP server** | `https://atfm.io/mcp`: search the registry, read an artifact's record and data card, walk lineage, list stale artifacts and collections, check IDs for newer versions, and plan what to rerun when an input changes. Read-only. |
+| **Hooks** | At session start, a short note that Artifactum is available and when to use it. After the agent writes or edits code: a one-time reminder when a `.py` file or notebook loads or saves data without Artifactum, and a note when the code reads an artifact ID that has a newer version or is stale (only the IDs are sent, to your own server). None of them ever blocks the agent. |
 
 ## Install
 

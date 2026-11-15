@@ -76,8 +76,9 @@ It also works as a decorator (`@atfm.step()`); each call is its own step.
 ## Before you rely on an input
 
 `atfm.artifact()` logs a warning when an ID is an old version (a newer one exists) or is stale (built from
-inputs that changed). Tell the user rather than silently switching IDs: the old version may be intended,
-for example to reproduce a published figure.
+inputs that changed), and the plugin notes the same when you write code that reads one. With MCP,
+`check_versions([...])` checks several IDs at once. Tell the user rather than silently switching IDs: the
+old version may be intended, for example to reproduce a published figure.
 
 ## Shell, R, Snakemake, Nextflow
 

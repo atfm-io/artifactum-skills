@@ -19,6 +19,8 @@ If the Artifactum MCP server is connected (tools named `search_artifacts`, `get_
 | Everything about one artifact | `get_artifact(id)`: description, tags, storage path, run, docs, uses, version status, how to load it |
 | What it's built from / what's built on it | `get_lineage(id, depth)`: nodes and parent→child edges |
 | What's stale, most used, recent | `registry_overview()` |
+| What to rerun after an input changed | `rerun_plan(artifact_id)`: ordered steps, each a run to repeat (script, argv, commit), what it rebuilds, the IDs to change in the code and the steps to do first. Empty `artifact_id` = the whole registry |
+| Are these IDs current? (e.g. every `atfm.artifact("...")` in a script) | `check_versions(artifact_ids)` |
 | What happened lately | `recent_activity(limit, kinds)` |
 | Collections | `list_collections()`, then `get_collection(id)` |
 
@@ -33,8 +35,12 @@ Without MCP, use the CLI: `atfm describe ID --json`, `atfm log ID --json`, `atfm
   the answer by project or step rather than dumping every node.
 - **Stale vs superseded**: *superseded* means a newer version of the same name exists. *Stale* means the
   artifact is current but one of its inputs has since been replaced, so it was built from out-of-date data.
-  Only direct children of a replaced input are marked stale; things further downstream are worth reviewing
-  too, so say so when it matters. Stale doesn't mean wrong: say what changed and let the user judge.
+  Only direct children of a replaced input are marked stale; `rerun_plan` covers everything further
+  downstream too. Stale doesn't mean wrong: say what changed and let the user judge.
+- **Bringing things up to date**: use `rerun_plan` and present its steps in order. Code reads inputs by ID,
+  so rerunning a script unchanged reads the old version again: for each step, change the `update_inputs`
+  IDs to their `newer_version`, and inputs rebuilt by earlier steps (`after_steps`) to the IDs those steps
+  publish. Steps with no `run` were published without recorded code. Don't rerun anything without asking.
 - **Collections** hold either exact versions (`tracks: "id"`, e.g. a paper's inputs) or the latest version
   of each name (`tracks: "latest"`). In a latest-tracking collection, `follows` is the name and
   `added_version` the ID originally added.

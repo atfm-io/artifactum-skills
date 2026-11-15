@@ -21,7 +21,8 @@ GUIDANCE = (
     "use the artifactum track-data skill: read inputs with atfm.artifact(\"ID\") and publish outputs with "
     "atfm.publish(...), so each result is recorded with what it was made from. Scratch files can stay plain paths. "
     "For questions about where data came from, who made it, or what is out of date, use the trace-provenance "
-    "skill and the artifactum MCP tools (search_artifacts, get_artifact, get_lineage, registry_overview)."
+    "skill and the artifactum MCP tools (search_artifacts, get_artifact, get_lineage, registry_overview); "
+    "for what to rerun after an input changed, rerun_plan."
 )
 
 

@@ -7,7 +7,10 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlsplit
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -169,6 +172,109 @@ class DataCodeCheck(Base):
     def test_bad_input_never_breaks_the_agent(self) -> None:
         r = run("data_code_check.py", "not json", **self.env)
         self.assertEqual((r.returncode, r.stdout), (0, ""))
+
+
+class FakeRegistry:
+    """A local stand-in for the server's /artifacts/status route, recording what it was sent."""
+
+    STATUS = {
+        "NORM0001": {"id": "NORM0001", "found": True, "filename": "norm.parquet", "superseded_by": "NORM0002",
+                     "stale": False, "outdated_inputs": []},
+        "MODL0001": {"id": "MODL0001", "found": True, "filename": "model.pkl", "superseded_by": None, "stale": True,
+                     "outdated_inputs": [{"id": "NORM0001", "newer_version": "NORM0002"}]},
+        "GOOD0001": {"id": "GOOD0001", "found": True, "filename": "ok.csv", "superseded_by": None, "stale": False,
+                     "outdated_inputs": []},
+    }
+
+    def __init__(self) -> None:
+        self.requests: list[dict] = []
+        registry = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:  # noqa: N802
+                url = urlsplit(self.path)
+                ids = parse_qs(url.query).get("ids", [""])[0].split(",")
+                registry.requests.append({"path": url.path, "ids": ids, "auth": self.headers.get("Authorization")})
+                body = json.dumps({"artifacts": {i: registry.STATUS.get(i, {"id": i, "found": False}) for i in ids}})
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body.encode())
+
+            def log_message(self, *args) -> None:
+                pass
+
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def close(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+
+
+class OutdatedInputs(DataCodeCheck):
+    def setUp(self) -> None:
+        super().setUp()
+        self.registry = FakeRegistry()
+        self.addCleanup(self.registry.close)
+        self.config(server=self.registry.url)
+
+    def test_notes_old_versions_and_stale_inputs_once_per_session(self) -> None:
+        f = self.write("train.py", """
+            import artifactum as atfm
+            import pandas as pd
+            norm = pd.read_parquet(atfm.artifact("NORM0001"))
+            model = atfm.artifact(id='modl0001')
+            ok = atfm.artifact("GOOD0001")
+        """)
+        out = self.hook({"file_path": str(f)})
+        ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("train.py", ctx)
+        self.assertIn("NORM0001 (norm.parquet) is an older version; the newest is NORM0002", ctx)
+        self.assertIn("MODL0001 (model.pkl) is stale", ctx)
+        self.assertNotIn("GOOD0001", ctx)
+        self.assertIn("don't switch silently", ctx)
+        [req] = self.registry.requests
+        self.assertEqual(req["path"], "/artifacts/status")
+        self.assertEqual(req["ids"], ["NORM0001", "MODL0001", "GOOD0001"])
+        self.assertEqual(req["auth"], "Bearer atfm_secret")
+        # Edited again in the same session: IDs already checked aren't sent or noted again
+        self.assertEqual(self.hook({"file_path": str(f)}), "")
+        self.assertEqual(len(self.registry.requests), 1)
+
+    def test_checks_shell_and_workflow_files_too(self) -> None:
+        f = self.write("Snakefile", "rule fetch:\n    shell: 'atfm get NORM0001 > norm.parquet'\n")
+        self.assertIn("NORM0001", self.hook({"file_path": str(f)}))
+
+    def test_quiet_when_every_id_is_current_or_unknown(self) -> None:
+        f = self.write("ok.py", 'import artifactum as atfm\natfm.artifact("GOOD0001")\natfm.artifact("ZZZZ9999")\n')
+        self.assertEqual(self.hook({"file_path": str(f)}), "")
+
+    def test_quiet_and_retries_later_when_the_registry_is_unreachable(self) -> None:
+        self.registry.close()
+        f = self.write("t.py", 'import artifactum as atfm\natfm.artifact("NORM0001")\n')
+        self.assertEqual(self.hook({"file_path": str(f)}), "")
+        # Back online: the ID wasn't marked as checked, so it's checked now
+        self.registry = FakeRegistry()
+        self.addCleanup(self.registry.close)
+        self.config(server=self.registry.url)
+        self.assertIn("NORM0001", self.hook({"file_path": str(f)}))
+
+    def test_sends_nothing_without_a_key(self) -> None:
+        (self.tmp / "config.toml").unlink()
+        f = self.write("t.py", 'import artifactum as atfm\natfm.artifact("NORM0001")\n')
+        self.assertEqual(self.hook({"file_path": str(f)}), "")
+        self.assertEqual(self.registry.requests, [])
+
+    def test_both_notes_can_come_together(self) -> None:
+        a = self.write("untracked.py", "import pandas as pd\npd.read_csv('x.csv')\n")
+        b = self.write("tracked.py", 'import artifactum as atfm\natfm.artifact("NORM0001")\n')
+        patch = "*** Begin Patch\n*** Update File: untracked.py\n*** Update File: tracked.py\n*** End Patch\n"
+        ctx = json.loads(self.hook({"command": patch}))["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("untracked.py reads or writes data files", ctx)
+        self.assertIn("tracked.py reads artifacts that have newer data", ctx)
+        del a, b
 
 
 class Manifests(unittest.TestCase):

@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "artifactum",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Artifactum (atfm) for coding agents: record data files with their lineage as you write code, and answer provenance questions from your team's registry over MCP.",
   "author": {
     "name": "Artifactum",
